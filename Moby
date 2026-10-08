@@ -1,0 +1,1122 @@
+-- MOBY HUB - SERVER
+-- Para uso no seu próprio jogo
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+local folder = ReplicatedStorage:FindFirstChild("MobyHub")
+
+if not folder then
+	folder = Instance.new("Folder")
+	folder.Name = "MobyHub"
+	folder.Parent = ReplicatedStorage
+end
+
+local function remoteFunction(name)
+	local obj = folder:FindFirstChild(name)
+	if not obj then
+		obj = Instance.new("RemoteFunction")
+		obj.Name = name
+		obj.Parent = folder
+	end
+	return obj
+end
+
+local function remoteEvent(name)
+	local obj = folder:FindFirstChild(name)
+	if not obj then
+		obj = Instance.new("RemoteEvent")
+		obj.Name = name
+		obj.Parent = folder
+	end
+	return obj
+end
+
+local GenerateKey = remoteFunction("GenerateKey")
+local CheckKey = remoteFunction("CheckKey")
+
+local ToggleInvisibility = remoteEvent("ToggleInvisibility")
+local SetSpeed = remoteEvent("SetSpeed")
+local SetFly = remoteEvent("SetFly")
+local SetAntiAFK = remoteEvent("SetAntiAFK")
+local SetAutoPlaceEgg = remoteEvent("SetAutoPlaceEgg")
+local SetAntiSlap = remoteEvent("SetAntiSlap")
+local SetAutoConveyor = remoteEvent("SetAutoConveyor")
+local SetSteal = remoteEvent("SetSteal")
+local SetInstant = remoteEvent("SetInstant")
+local SetESP = remoteEvent("SetESP")
+
+local CreatorKey = "LK7CREATOR"
+local KEY_TIME = 24 * 60 * 60
+
+local Keys = {}
+local PlayerKeys = {}
+
+local State = {}
+
+local function getState(player)
+	if not State[player] then
+		State[player] = {
+			Invisibility = false,
+			Speed = false,
+			Fly = false,
+			AntiAFK = false,
+			AutoPlaceEgg = false,
+			AntiSlap = false,
+			AutoConveyor = false,
+			Steal = false,
+			Instant = false,
+			ESP = false
+		}
+	end
+
+	return State[player]
+end
+
+local function setInvisible(player, enabled)
+	local character = player.Character
+	if not character then return end
+
+	for _, object in ipairs(character:GetDescendants()) do
+		if object:IsA("BasePart") then
+			if object.Name ~= "HumanoidRootPart" then
+				object.Transparency = enabled and 1 or 0
+			end
+		elseif object:IsA("Decal") then
+			object.Transparency = enabled and 1 or 0
+		end
+	end
+end
+
+local function applyCharacterSettings(player)
+	local state = getState(player)
+	local character = player.Character
+
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	if humanoid then
+		humanoid.WalkSpeed = state.Speed and 32 or 16
+	end
+
+	setInvisible(player, state.Invisibility)
+end
+
+Players.PlayerAdded:Connect(function(player)
+	getState(player)
+
+	player.CharacterAdded:Connect(function()
+		task.wait(0.5)
+		applyCharacterSettings(player)
+	end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	State[player] = nil
+	PlayerKeys[player] = nil
+end)
+
+GenerateKey.OnServerInvoke = function(player)
+	local key = "MOBY-" .. string.upper(HttpService:GenerateGUID(false):gsub("-", ""))
+
+	Keys[key] = {
+		Owner = player.UserId,
+		Expires = os.time() + KEY_TIME,
+		Used = false
+	}
+
+	return key
+end
+
+CheckKey.OnServerInvoke = function(player, key)
+	if typeof(key) ~= "string" then
+		return false, "Chave inválida."
+	end
+
+	key = key:gsub("%s+", "")
+
+	if key == CreatorKey then
+		PlayerKeys[player] = {
+			Permanent = true,
+			Expires = math.huge
+		}
+
+		return true, "CREATOR"
+	end
+
+	local data = Keys[key]
+
+	if not data then
+		return false, "Chave não encontrada."
+	end
+
+	if data.Used then
+		return false, "Esta chave já foi usada."
+	end
+
+	if os.time() >= data.Expires then
+		Keys[key] = nil
+		return false, "Esta chave expirou."
+	end
+
+	data.Used = true
+
+	PlayerKeys[player] = {
+		Permanent = false,
+		Expires = data.Expires
+	}
+
+	return true, data.Expires
+end
+
+ToggleInvisibility.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+
+	state.Invisibility = enabled == true
+
+	setInvisible(player, state.Invisibility)
+end)
+
+SetSpeed.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+
+	state.Speed = enabled == true
+
+	applyCharacterSettings(player)
+end)
+
+SetFly.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.Fly = enabled == true
+end)
+
+SetAntiAFK.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.AntiAFK = enabled == true
+end)
+
+SetAutoPlaceEgg.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.AutoPlaceEgg = enabled == true
+end)
+
+SetAntiSlap.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.AntiSlap = enabled == true
+end)
+
+SetAutoConveyor.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.AutoConveyor = enabled == true
+end)
+
+SetSteal.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.Steal = enabled == true
+end)
+
+SetInstant.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.Instant = enabled == true
+end)
+
+SetESP.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.ESP = enabled == true
+end)
+
+-- Exemplo de acesso ao estado:
+-- State[player].Steal
+-- State[player].Instant
+-- etc.
+--
+-- As funções específicas do seu jogo devem usar esses estados.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+local folder = ReplicatedStorage:FindFirstChild("MobyHub")
+
+if not folder then
+	folder = Instance.new("Folder")
+	folder.Name = "MobyHub"
+	folder.Parent = ReplicatedStorage
+end
+
+local function remoteFunction(name)
+	local obj = folder:FindFirstChild(name)
+	if not obj then
+		obj = Instance.new("RemoteFunction")
+		obj.Name = name
+		obj.Parent = folder
+	end
+	return obj
+end
+
+local function remoteEvent(name)
+	local obj = folder:FindFirstChild(name)
+	if not obj then
+		obj = Instance.new("RemoteEvent")
+		obj.Name = name
+		obj.Parent = folder
+	end
+	return obj
+end
+
+local GenerateKey = remoteFunction("GenerateKey")
+local CheckKey = remoteFunction("CheckKey")
+
+local ToggleInvisibility = remoteEvent("ToggleInvisibility")
+local SetSpeed = remoteEvent("SetSpeed")
+local SetFly = remoteEvent("SetFly")
+local SetAntiAFK = remoteEvent("SetAntiAFK")
+local SetAutoPlaceEgg = remoteEvent("SetAutoPlaceEgg")
+local SetAntiSlap = remoteEvent("SetAntiSlap")
+local SetAutoConveyor = remoteEvent("SetAutoConveyor")
+local SetSteal = remoteEvent("SetSteal")
+local SetInstant = remoteEvent("SetInstant")
+local SetESP = remoteEvent("SetESP")
+
+local CreatorKey = "LK7CREATOR"
+local KEY_TIME = 24 * 60 * 60
+
+local Keys = {}
+local PlayerKeys = {}
+
+local State = {}
+
+local function getState(player)
+	if not State[player] then
+		State[player] = {
+			Invisibility = false,
+			Speed = false,
+			Fly = false,
+			AntiAFK = false,
+			AutoPlaceEgg = false,
+			AntiSlap = false,
+			AutoConveyor = false,
+			Steal = false,
+			Instant = false,
+			ESP = false
+		}
+	end
+
+	return State[player]
+end
+
+local function setInvisible(player, enabled)
+	local character = player.Character
+	if not character then return end
+
+	for _, object in ipairs(character:GetDescendants()) do
+		if object:IsA("BasePart") then
+			if object.Name ~= "HumanoidRootPart" then
+				object.Transparency = enabled and 1 or 0
+			end
+		elseif object:IsA("Decal") then
+			object.Transparency = enabled and 1 or 0
+		end
+	end
+end
+
+local function applyCharacterSettings(player)
+	local state = getState(player)
+	local character = player.Character
+
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	if humanoid then
+		humanoid.WalkSpeed = state.Speed and 32 or 16
+	end
+
+	setInvisible(player, state.Invisibility)
+end
+
+Players.PlayerAdded:Connect(function(player)
+	getState(player)
+
+	player.CharacterAdded:Connect(function()
+		task.wait(0.5)
+		applyCharacterSettings(player)
+	end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	State[player] = nil
+	PlayerKeys[player] = nil
+end)
+
+GenerateKey.OnServerInvoke = function(player)
+	local key = "MOBY-" .. string.upper(HttpService:GenerateGUID(false):gsub("-", ""))
+
+	Keys[key] = {
+		Owner = player.UserId,
+		Expires = os.time() + KEY_TIME,
+		Used = false
+	}
+
+	return key
+end
+
+CheckKey.OnServerInvoke = function(player, key)
+	if typeof(key) ~= "string" then
+		return false, "Chave inválida."
+	end
+
+	key = key:gsub("%s+", "")
+
+	if key == CreatorKey then
+		PlayerKeys[player] = {
+			Permanent = true,
+			Expires = math.huge
+		}
+
+		return true, "CREATOR"
+	end
+
+	local data = Keys[key]
+
+	if not data then
+		return false, "Chave não encontrada."
+	end
+
+	if data.Used then
+		return false, "Esta chave já foi usada."
+	end
+
+	if os.time() >= data.Expires then
+		Keys[key] = nil
+		return false, "Esta chave expirou."
+	end
+
+	data.Used = true
+
+	PlayerKeys[player] = {
+		Permanent = false,
+		Expires = data.Expires
+	}
+
+	return true, data.Expires
+end
+
+ToggleInvisibility.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+
+	state.Invisibility = enabled == true
+
+	setInvisible(player, state.Invisibility)
+end)
+
+SetSpeed.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+
+	state.Speed = enabled == true
+
+	applyCharacterSettings(player)
+end)
+
+SetFly.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.Fly = enabled == true
+end)
+
+SetAntiAFK.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.AntiAFK = enabled == true
+end)
+
+SetAutoPlaceEgg.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.AutoPlaceEgg = enabled == true
+end)
+
+SetAntiSlap.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.AntiSlap = enabled == true
+end)
+
+SetAutoConveyor.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.AutoConveyor = enabled == true
+end)
+
+SetSteal.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.Steal = enabled == true
+end)
+
+SetInstant.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.Instant = enabled == true
+end)
+
+SetESP.OnServerEvent:Connect(function(player, enabled)
+	local state = getState(player)
+	state.ESP = enabled == true
+end)
+
+-- Exemplo de acesso ao estado:
+-- State[player].Steal
+-- State[player].Instant
+-- etc.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local hub = ReplicatedStorage:WaitForChild("MobyHub")
+
+local GenerateKey = hub:WaitForChild("GenerateKey")
+local CheckKey = hub:WaitForChild("CheckKey")
+
+local ToggleInvisibility = hub:WaitForChild("ToggleInvisibility")
+local SetSpeed = hub:WaitForChild("SetSpeed")
+local SetFly = hub:WaitForChild("SetFly")
+local SetAntiAFK = hub:WaitForChild("SetAntiAFK")
+local SetAutoPlaceEgg = hub:WaitForChild("SetAutoPlaceEgg")
+local SetAntiSlap = hub:WaitForChild("SetAntiSlap")
+local SetAutoConveyor = hub:WaitForChild("SetAutoConveyor")
+local SetSteal = hub:WaitForChild("SetSteal")
+local SetInstant = hub:WaitForChild("SetInstant")
+local SetESP = hub:WaitForChild("SetESP")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "MobyHub"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local unlocked = false
+local creator = false
+local keyExpiration = 0
+
+local function corner(object, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = object
+end
+
+local function createButton(parent, text, size, position)
+	local button = Instance.new("TextButton")
+
+	button.Size = size
+	button.Position = position
+	button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	button.Text = text
+	button.TextSize = 15
+	button.Font = Enum.Font.GothamBold
+	button.AutoButtonColor = true
+
+	button.Parent = parent
+	corner(button, 8)
+
+	return button
+end
+
+--------------------------------------------------
+-- BOTÃO MD
+--------------------------------------------------
+
+local mdButton = Instance.new("ImageButton")
+
+mdButton.Name = "MDBUtton"
+mdButton.Size = UDim2.fromOffset(65, 65)
+mdButton.Position = UDim2.new(0, 20, 0.5, -32)
+mdButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mdButton.Image = "rbxassetid://COLOQUE_O_ID_DA_SUA_IMAGEM_MD"
+mdButton.ScaleType = Enum.ScaleType.Fit
+mdButton.Parent = gui
+
+corner(mdButton, 50)
+
+--------------------------------------------------
+-- LOCK / UNLOCK
+--------------------------------------------------
+
+local lockButton = createButton(
+	gui,
+	"🔒 LOCK",
+	UDim2.fromOffset(65, 30),
+	UDim2.new(0, 20, 0.5, 40)
+)
+
+local locked = false
+
+lockButton.MouseButton1Click:Connect(function()
+	locked = not locked
+
+	if locked then
+		lockButton.Text = "🔓 UNLOCK"
+	else
+		lockButton.Text = "🔒 LOCK"
+	end
+end)
+
+--------------------------------------------------
+-- DRAG DO MD
+--------------------------------------------------
+
+local dragging = false
+local dragStart
+local startPosition
+
+mdButton.InputBegan:Connect(function(input)
+	if locked then return end
+
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = true
+		dragStart = input.Position
+		startPosition = mdButton.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if not dragging or locked then return end
+
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		local delta = input.Position - dragStart
+
+		mdButton.Position = UDim2.new(
+			startPosition.X.Scale,
+			startPosition.X.Offset + delta.X,
+			startPosition.Y.Scale,
+			startPosition.Y.Offset + delta.Y
+		)
+
+		lockButton.Position = UDim2.new(
+			mdButton.Position.X.Scale,
+			mdButton.Position.X.Offset,
+			mdButton.Position.Y.Scale,
+			mdButton.Position.Y.Offset + 72
+		)
+	end
+end)
+
+--------------------------------------------------
+-- KEY SCREEN
+--------------------------------------------------
+
+local keyFrame = Instance.new("Frame")
+
+keyFrame.Size = UDim2.fromOffset(330, 230)
+keyFrame.Position = UDim2.new(0.5, -165, 0.5, -115)
+keyFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+keyFrame.Parent = gui
+
+corner(keyFrame, 12)
+
+local title = Instance.new("TextLabel")
+
+title.Size = UDim2.new(1, 0, 0, 50)
+title.BackgroundTransparency = 1
+title.Text = "🔑 MOBY HUB"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 24
+title.Font = Enum.Font.GothamBold
+title.Parent = keyFrame
+
+local keyBox = Instance.new("TextBox")
+
+keyBox.Size = UDim2.new(1, -30, 0, 45)
+keyBox.Position = UDim2.fromOffset(15, 65)
+keyBox.PlaceholderText = "Digite sua Key"
+keyBox.Text = ""
+keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+keyBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+keyBox.Font = Enum.Font.Gotham
+keyBox.TextSize = 14
+keyBox.Parent = keyFrame
+
+corner(keyBox, 8)
+
+local getKey = createButton(
+	keyFrame,
+	"GET KEY",
+	UDim2.new(0.46, 0, 0, 45),
+	UDim2.new(0.02, 0, 0, 125)
+)
+
+local checkKey = createButton(
+	keyFrame,
+	"CHECK KEY",
+	UDim2.new(0.46, 0, 0, 45),
+	UDim2.new(0.52, 0, 0, 125)
+)
+
+local status = Instance.new("TextLabel")
+
+status.Size = UDim2.new(1, -20, 0, 35)
+status.Position = UDim2.fromOffset(10, 180)
+status.BackgroundTransparency = 1
+status.Text = ""
+status.TextColor3 = Color3.fromRGB(255, 255, 255)
+status.TextSize = 13
+status.Font = Enum.Font.Gotham
+status.Parent = keyFrame
+
+--------------------------------------------------
+-- MENU
+--------------------------------------------------
+
+local menu = Instance.new("Frame")
+
+menu.Size = UDim2.fromOffset(300, 360)
+menu.Position = UDim2.new(0.5, -150, 0.5, -180)
+menu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+menu.Visible = false
+menu.Parent = gui
+
+corner(menu, 12)
+
+local menuTitle = Instance.new("TextLabel")
+
+menuTitle.Size = UDim2.new(1, 0, 0, 55)
+menuTitle.BackgroundTransparency = 1
+menuTitle.Text = "🟣 MOBY HUB"
+menuTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+menuTitle.TextSize = 23
+menuTitle.Font = Enum.Font.GothamBold
+menuTitle.Parent = menu
+
+local content = Instance.new("ScrollingFrame")
+
+content.Size = UDim2.new(1, -20, 1, -70)
+content.Position = UDim2.fromOffset(10, 60)
+content.BackgroundTransparency = 1
+content.BorderSizePixel = 0
+content.ScrollBarThickness = 4
+content.CanvasSize = UDim2.new(0, 0, 0, 0)
+content.Parent = menu
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 7)
+layout.Parent = content
+
+local function updateCanvas()
+	content.CanvasSize = UDim2.new(
+		0,
+		0,
+		0,
+		layout.AbsoluteContentSize.Y + 10
+	)
+end
+
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+
+--------------------------------------------------
+-- TOGGLES
+--------------------------------------------------
+
+local toggles = {}
+
+local function createToggle(name, callback)
+	local button = createButton(
+		content,
+		name .. "   ⬜",
+		UDim2.new(1, -5, 0, 42),
+		UDim2.new()
+	)
+
+	local active = false
+
+	button.MouseButton1Click:Connect(function()
+		active = not active
+
+		button.Text = name .. "   " .. (active and "🟩" or "⬜")
+
+		callback(active)
+	end)
+
+	toggles[name] = {
+		Button = button,
+		Get = function()
+			return active
+		end
+	}
+
+	return button
+end
+
+--------------------------------------------------
+-- PRINCIPAL
+--------------------------------------------------
+
+createToggle("🥚 STEAL", function(value)
+	SetSteal:FireServer(value)
+end)
+
+createToggle("⚡ INSTANT", function(value)
+	SetInstant:FireServer(value)
+end)
+
+createToggle("🏃 AUTO CONVEYOR", function(value)
+	SetAutoConveyor:FireServer(value)
+end)
+
+createToggle("🖐️ ANTI SLAP", function(value)
+	SetAntiSlap:FireServer(value)
+end)
+
+createToggle("🛡️ ANTI AFK", function(value)
+	SetAntiAFK:FireServer(value)
+end)
+
+createToggle("🥚 AUTO PLACE EGG", function(value)
+	SetAutoPlaceEgg:FireServer(value)
+end)
+
+--------------------------------------------------
+-- VISUAL
+--------------------------------------------------
+
+createToggle("👤 ESP", function(value)
+	SetESP:FireServer(value)
+
+	for _, other in ipairs(Players:GetPlayers()) do
+		if other ~= player and other.Character then
+
+			local old = other.Character:FindFirstChild("MobyESP")
+
+			if value then
+
+				if not old then
+					local highlight = Instance.new("Highlight")
+					highlight.Name = "MobyESP"
+					highlight.FillTransparency = 0.65
+					highlight.OutlineTransparency = 0
+					highlight.Parent = other.Character
+				end
+
+			elseif old then
+				old:Destroy()
+			end
+		end
+	end
+end)
+
+--------------------------------------------------
+-- SETTINGS
+--------------------------------------------------
+
+local scaleButton = createButton(
+	content,
+	"🖱️ UI SCALE     ◀ 100% ▶",
+	UDim2.new(1, -5, 0, 42),
+	UDim2.new()
+)
+
+local scale = 1
+
+scaleButton.MouseButton1Click:Connect(function()
+	scale += 0.1
+
+	if scale > 1.5 then
+		scale = 0.7
+	end
+
+	scaleButton.Text = "🖱️ UI SCALE     " .. math.floor(scale * 100) .. "%"
+end)
+
+local themeButton = createButton(
+	content,
+	"🎨 UI THEME     Dark",
+	UDim2.new(1, -5, 0, 42),
+	UDim2.new()
+)
+
+createToggle("👻 INVISIBILITY", function(value)
+	ToggleInvisibility:FireServer(value)
+end)
+
+createToggle("🪽 FLY", function(value)
+	SetFly:FireServer(value)
+end)
+
+createToggle("⚡ SPEED", function(value)
+	SetSpeed:FireServer(value)
+end)
+
+createToggle("Credits: LK7", function()
+end)
+
+--------------------------------------------------
+-- FLY
+--------------------------------------------------
+
+local flying = false
+local flyVelocity
+
+local function updateFly(enabled)
+	flying = enabled
+
+	local character = player.Character
+	if not character then return end
+
+	local root = character:FindFirstChild("HumanoidRootPart")
+
+	if not root then return end
+
+	if enabled then
+
+		if flyVelocity then
+			flyVelocity:Destroy()
+		end
+
+		flyVelocity = Instance.new("BodyVelocity")
+		flyVelocity.Name = "MobyFly"
+		flyVelocity.MaxForce = Vector3.new(
+			math.huge,
+			math.huge,
+			math.huge
+		)
+		flyVelocity.Velocity = Vector3.zero
+		flyVelocity.Parent = root
+
+	else
+
+		if flyVelocity then
+			flyVelocity:Destroy()
+			flyVelocity = nil
+		end
+	end
+end
+
+RunService.RenderStepped:Connect(function()
+
+	if not flying then return end
+	if not flyVelocity then return end
+
+	local character = player.Character
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+	if humanoid then
+		flyVelocity.Velocity =
+			humanoid.MoveDirection * 60
+	end
+end)
+
+--------------------------------------------------
+-- ABRIR / FECHAR
+--------------------------------------------------
+
+mdButton.MouseButton1Click:Connect(function()
+
+	if not unlocked then
+		return
+	end
+
+	menu.Visible = not menu.Visible
+end)
+
+--------------------------------------------------
+-- GET KEY
+--------------------------------------------------
+
+getKey.MouseButton1Click:Connect(function()
+
+	local success, key = pcall(function()
+		return GenerateKey:InvokeServer()
+	end)
+
+	if success and key then
+
+		keyBox.Text = key
+
+		status.Text = "Key gerada."
+
+		status.TextColor3 =
+			Color3.fromRGB(100, 255, 120)
+
+	else
+
+		status.Text = "Erro ao gerar Key."
+
+		status.TextColor3 =
+			Color3.fromRGB(255, 100, 100)
+	end
+end)
+
+--------------------------------------------------
+-- CHECK KEY
+--------------------------------------------------
+
+checkKey.MouseButton1Click:Connect(function()
+
+	local key = keyBox.Text
+
+	if key == "" then
+
+		status.Text = "Digite uma Key."
+
+		status.TextColor3 =
+			Color3.fromRGB(255, 100, 100)
+
+		return
+	end
+
+	local success, message =
+		CheckKey:InvokeServer(key)
+
+	if success then
+
+		unlocked = true
+
+		keyFrame.Visible = false
+
+		status.Text = ""
+
+		if message == "CREATOR" then
+
+			creator = true
+
+			local creatorFrame = Instance.new("Frame")
+
+			creatorFrame.Size = UDim2.fromOffset(300, 140)
+			creatorFrame.Position =
+				UDim2.new(0.5, -150, 0.5, -70)
+
+			creatorFrame.BackgroundColor3 =
+				Color3.fromRGB(20, 20, 20)
+
+			creatorFrame.Parent = gui
+
+			corner(creatorFrame, 12)
+
+			local creatorText = Instance.new("TextLabel")
+
+			creatorText.Size =
+				UDim2.new(1, -20, 0, 70)
+
+			creatorText.Position =
+				UDim2.fromOffset(10, 10)
+
+			creatorText.BackgroundTransparency = 1
+
+			creatorText.Text =
+				"Olá meu criador! 👑"
+
+			creatorText.TextColor3 =
+				Color3.fromRGB(255, 255, 255)
+
+			creatorText.TextSize = 22
+
+			creatorText.Font =
+				Enum.Font.GothamBold
+
+			creatorText.Parent = creatorFrame
+
+			local close = createButton(
+				creatorFrame,
+				"FECHAR",
+				UDim2.new(0.8, 0, 0, 35),
+				UDim2.new(0.1, 0, 0, 90)
+			)
+
+			local closed = false
+
+			local function closeCreator()
+				if closed then return end
+
+				closed = true
+
+				if creatorFrame then
+					creatorFrame:Destroy()
+				end
+			end
+
+			close.MouseButton1Click:Connect(closeCreator)
+
+			task.delay(3, closeCreator)
+
+		else
+
+			keyExpiration = tonumber(message) or 0
+
+			status.Text = "Key válida!"
+
+			status.TextColor3 =
+				Color3.fromRGB(100, 255, 120)
+		end
+
+	else
+
+		status.Text = tostring(message)
+
+		status.TextColor3 =
+			Color3.fromRGB(255, 100, 100)
+	end
+end)
+
+--------------------------------------------------
+-- EXPIRAÇÃO DA KEY
+--------------------------------------------------
+
+task.spawn(function()
+
+	while true do
+
+		task.wait(1)
+
+		if unlocked and not creator and keyExpiration > 0 then
+
+			if os.time() >= keyExpiration then
+
+				unlocked = false
+				keyExpiration = 0
+
+				menu.Visible = false
+				keyFrame.Visible = true
+
+				keyBox.Text = ""
+
+				status.Text =
+					"Sua Key expirou. Gere uma nova."
+
+				status.TextColor3 =
+					Color3.fromRGB(255, 170, 80)
+			end
+		end
+	end
+end)
+
+--------------------------------------------------
+-- ESP PARA NOVOS JOGADORES
+--------------------------------------------------
+
+Players.PlayerAdded:Connect(function(other)
+
+	if other == player then return end
+
+	other.CharacterAdded:Connect(function(character)
+
+		local esp = toggles["👤 ESP"]
+
+		if esp and esp.Get() then
+
+			local highlight = Instance.new("Highlight")
+			highlight.Name = "MobyESP"
+			highlight.FillTransparency = 0.65
+			highlight.Parent = character
+		end
+	end)
+end)
